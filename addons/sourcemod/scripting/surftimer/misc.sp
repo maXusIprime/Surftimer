@@ -313,8 +313,54 @@ public void teleportClient(int client, int zonegroup, int zone, bool stopTime)
 					if (stopTime)
 						Client_Stop(client, 0);
 
-					// Set spawn location to the destination zone:
-					Array_Copy(g_mapZones[destinationZoneId][CenterPoint], g_fTeleLocation[client], 3);
+					// Set spawn location to the destination zone:	https://pastebin.com/9qbQLiTT
+					bool destinationFound = false;
+                    int entity;
+                    float origin[3];
+                    float ang[3];
+                    for (int i = 0; i < GetArraySize(g_hDestinations); i++)
+                    {
+                        entity = GetArrayCell(g_hDestinations, i);
+                        GetEntPropVector(entity, Prop_Send, "m_vecOrigin", origin);
+                        /**
+                        *   Checks if coordinates are inside a zone
+                        *   Return: zone id where location is in, or -1 if not inside a zone
+                        **/
+                        if (zonegroup > 0 && StrEqual(g_szMapName, "surf_mudkip_fix"))
+                        {
+                            char szBuffer[128];
+                            char szTargetName[128];
+                            GetEntPropString(entity, Prop_Send, "m_iName", szBuffer, sizeof(szBuffer));
+                            Format(szTargetName, 128, "bonus%i", zonegroup);
+                            if (zonegroup == 5)
+                                Format(szTargetName, 128, "%s_1", szTargetName);
+ 
+                            if (StrEqual(szBuffer, szTargetName))
+                            {
+                                destinationFound = true;
+                                GetEntPropVector(entity, Prop_Send, "m_angRotation", ang);
+                                break;
+                            }
+                        }
+                        else
+                        {
+                            if (IsInsideZone(origin) == destinationZoneId)
+                            {
+                                destinationFound = true;
+                                GetEntPropVector(entity, Prop_Send, "m_angRotation", ang);
+                                break;
+                            }
+                        }
+                    }
+                   
+                    // Set client speed to 0
+                    SetEntPropVector(client, Prop_Data, "m_vecVelocity", view_as<float>( { 0.0, 0.0, -100.0 } ));
+ 
+                    float fLocation[3];
+                    if (destinationFound)
+                        Array_Copy(origin, fLocation, 3);
+                    else
+                        Array_Copy(g_mapZones[destinationZoneId][CenterPoint], g_fTeleLocation[client], 3);
 
 					// Set specToStage flag
 					g_bRespawnPosition[client] = false;
@@ -328,6 +374,12 @@ public void teleportClient(int client, int zonegroup, int zone, bool stopTime)
 						g_bInStartZone[client] =  false;
 						g_bInStageZone[client] = false;
 					}
+					
+					// Teleport
+                    if (destinationFound)
+                        teleportEntitySafe(client, fLocation, ang, view_as<float>( { 0.0, 0.0, -100.0 } ), stopTime);
+                    else
+                        teleportEntitySafe(client, g_fTeleLocation[client], NULL_VECTOR, view_as<float>( { 0.0, 0.0, -100.0 } ), stopTime);					
 				}
 				else // Teleport normally
 				{
@@ -1846,7 +1898,8 @@ stock void MapFinishedMsgs(int client, int rankThisRun = 0)
 {
 	if (IsValidClient(client))
 	{
-		char szName[MAX_NAME_LENGTH];
+		float RecordDiff;
+		char szRecordDiff[32], szName[MAX_NAME_LENGTH];
 		GetClientName(client, szName, MAX_NAME_LENGTH);
 		int count = g_MapTimesCount;
 
@@ -1878,31 +1931,32 @@ stock void MapFinishedMsgs(int client, int rankThisRun = 0)
 			{
 				if (IsValidClient(i) && !IsFakeClient(i))
 				{
-					if (g_bMapFirstRecord[client]) // 1st time finishing
+					if (g_bMapSRVRecord[client])
+					{
+						PlayRecordSound(2);
+						RecordDiff = g_fOldRecordMapTime - g_fFinalTime[client];
+						FormatTimeFloat(client, RecordDiff, 3, szRecordDiff, 32);
+						Format(szRecordDiff, 32, "-%s", szRecordDiff);
+
+						CPrintToChat(i,"%t", "MapFinished38", g_szChatPrefix, szName, g_szFinalTime[client], szRecordDiff, g_MapRank[client], count, g_szRecordMapTime);
+						CPrintToChat(i, "%t", "NewMapRecord", g_szChatPrefix, szName);
+						PrintToConsole(i, "surftimer | %s scored a new MAP RECORD", szName);
+					}
+					else if (g_bMapFirstRecord[client] && !g_bMapSRVRecord[client]) // 1st time finishing
 					{
 						CPrintToChat(i, "%t", "MapFinished1", g_szChatPrefix, szName, g_szFinalTime[client], g_MapRank[client], count, szGroup, g_szRecordMapTime);
 						PrintToConsole(i, "%s finished the map with a time of (%s). [rank #%i/%i | record %s]", szName, g_szFinalTime[client], g_MapRank[client], count, g_szRecordMapTime);
 					}
-					else
-						if (g_bMapPBRecord[client]) // Own record
-						{
-							PlayUnstoppableSound(client);
-							CPrintToChat(i, "%t", "MapFinished3", g_szChatPrefix, szName, g_szFinalTime[client], g_szTimeDifference[client], g_MapRank[client], count, szGroup, g_szRecordMapTime);
-							PrintToConsole(i, "%s finished the map with a time of (%s). Improving their best time by (%s).  [rank #%i/%i | record %s]", szName, g_szFinalTime[client], g_szTimeDifference[client], g_MapRank[client], count, g_szRecordMapTime);
-						}
-						else
-							if (!g_bMapSRVRecord[client] && !g_bMapFirstRecord[client] && !g_bMapPBRecord[client])
-							{
-								CPrintToChat(i, "%t", "MapFinished5", g_szChatPrefix, szName, g_szFinalTime[client], g_szTimeDifference[client], g_MapRank[client], count, szGroup, g_szRecordMapTime);
-								PrintToConsole(i, "%s finished the map with a time of (%s). Missing their best time by (%s).  [rank #%i/%i | record %s]", szName, g_szFinalTime[client], g_szTimeDifference[client], g_MapRank[client], count, g_szRecordMapTime);
-							}
-
-					if (g_bMapSRVRecord[client])
+					else if (g_bMapPBRecord[client] && !g_bMapSRVRecord[client]) // Own record and not Server Record
 					{
-						// int r = GetRandomInt(1, 2);
-						PlayRecordSound(2);
-						CPrintToChat(i, "%t", "NewMapRecord", g_szChatPrefix, szName);
-						PrintToConsole(i, "surftimer | %s scored a new MAP RECORD", szName);
+						PlayUnstoppableSound(client);
+						CPrintToChat(i, "%t", "MapFinished3", g_szChatPrefix, szName, g_szFinalTime[client], g_szTimeDifference[client], g_MapRank[client], count, szGroup, g_szRecordMapTime);
+						PrintToConsole(i, "%s finished the map with a time of (%s). Improving their best time by (%s).  [rank #%i/%i | record %s]", szName, g_szFinalTime[client], g_szTimeDifference[client], g_MapRank[client], count, g_szRecordMapTime);
+					}
+					else if (!g_bMapSRVRecord[client] && !g_bMapFirstRecord[client] && !g_bMapPBRecord[client])
+					{
+						CPrintToChat(i, "%t", "MapFinished5", g_szChatPrefix, szName, g_szFinalTime[client], g_szTimeDifference[client], g_MapRank[client], count, szGroup, g_szRecordMapTime);
+						PrintToConsole(i, "%s finished the map with a time of (%s). Missing their best time by (%s).  [rank #%i/%i | record %s]", szName, g_szFinalTime[client], g_szTimeDifference[client], g_MapRank[client], count, g_szRecordMapTime);
 					}
 				}
 			}
@@ -1944,7 +1998,7 @@ stock void MapFinishedMsgs(int client, int rankThisRun = 0)
 			char buffer[1024];
 			GetConVarString(g_hRecordAnnounceDiscord, buffer, 1024);
 			if (!StrEqual(buffer, ""))
-				sendDiscordAnnouncement(szName, g_szMapName, g_szFinalTime[client]);
+				sendDiscordAnnouncement(szName, g_szMapName, g_szFinalTime[client], szRecordDiff, 0);
 		}
 
 		if (g_bTop10Time[client])
@@ -1989,7 +2043,7 @@ stock void PrintChatBonus (int client, int zGroup, int rank = 0)
 		return;
 
 	float RecordDiff;
-	char szRecordDiff[54], szName[MAX_NAME_LENGTH];
+	char szRecordDiff[32], szName[MAX_NAME_LENGTH];
 
 	if (rank == 0)
 		rank = g_MapRankBonus[zGroup][client];
@@ -2006,8 +2060,8 @@ stock void PrintChatBonus (int client, int zGroup, int rank = 0)
 			PlayRecordSound(2);
 
 			RecordDiff = g_fOldBonusRecordTime[zGroup] - g_fFinalTime[client];
-			FormatTimeFloat(client, RecordDiff, 3, szRecordDiff, 54);
-			Format(szRecordDiff, 54, "-%s", szRecordDiff);
+			FormatTimeFloat(client, RecordDiff, 3, szRecordDiff, 32);
+			Format(szRecordDiff, 32, "-%s", szRecordDiff);
 		}
 		if (g_bBonusFirstRecord[client] && g_bBonusSRVRecord[client])
 		{
@@ -2044,8 +2098,8 @@ stock void PrintChatBonus (int client, int zGroup, int rank = 0)
 			PlayRecordSound(2);
 
 			RecordDiff = g_fOldBonusRecordTime[zGroup] - g_fFinalTime[client];
-			FormatTimeFloat(client, RecordDiff, 3, szRecordDiff, 54);
-			Format(szRecordDiff, 54, "-%s", szRecordDiff);
+			FormatTimeFloat(client, RecordDiff, 3, szRecordDiff, 32);
+			Format(szRecordDiff, 32, "-%s", szRecordDiff);
 		}
 		if (g_bBonusFirstRecord[client] && g_bBonusSRVRecord[client])
 		{
@@ -2083,7 +2137,7 @@ stock void PrintChatBonus (int client, int zGroup, int rank = 0)
 		char buffer[1024];
 		GetConVarString(g_hBonusRecordAnnounceDiscord, buffer, 1024);
 		if (!StrEqual(buffer, ""))
-			sendDiscordAnnouncementBonus(szName, g_szMapName, g_szFinalTime[client], zGroup);
+			sendDiscordAnnouncementBonus(szName, g_szMapName, g_szFinalTime[client], szRecordDiff, zGroup, 0);
 	}
 
 	/* Start function call */
@@ -4066,7 +4120,8 @@ stock void StyleFinishedMsgs(int client, int style)
 {
 	if (IsValidClient(client))
 	{
-		char szName[MAX_NAME_LENGTH];
+		float RecordDiff;
+		char szRecordDiff[32], szName[MAX_NAME_LENGTH];
 		GetClientName(client, szName, MAX_NAME_LENGTH);
 		int count = g_StyleMapTimesCount[style];
 
@@ -4076,22 +4131,24 @@ stock void StyleFinishedMsgs(int client, int style)
 			{
 				if (IsValidClient(i) && !IsFakeClient(i))
 				{
-					if (g_bStyleMapFirstRecord[style][client]) // 1st time finishing
+					if (g_bMapSRVRecord[client])
+					{
+						PlayRecordSound(2);
+						RecordDiff = g_fOldRecordStyleMapTime[style] - g_fFinalTime[client];
+						FormatTimeFloat(client, RecordDiff, 3, szRecordDiff, 32);
+						Format(szRecordDiff, 32, "-%s", szRecordDiff);
+
+						CPrintToChat(i,"%t", "StyleFinished38", g_szChatPrefix, szName, g_szStyleRecordPrint[style], g_szFinalTime[client], szRecordDiff, g_StyleMapRank[style][client], count, g_szRecordStyleMapTime[style]);
+						CPrintToChat(i, "%t", "Misc36", g_szChatPrefix, szName, g_szStyleRecordPrint[style]);
+					}
+					if (g_bStyleMapFirstRecord[style][client] && !g_bStyleMapSRVRecord[style][client]) // 1st time finishing
 					{
 						CPrintToChat(i, "%t", "Misc34", g_szChatPrefix, szName, g_szStyleRecordPrint[style], g_szFinalTime[client], g_StyleMapRank[style][client], count, g_szRecordStyleMapTime[style]);
 					}
-					else
-					if (g_bStyleMapPBRecord[style][client]) // Own record
+					else if (g_bStyleMapPBRecord[style][client] && !g_bStyleMapSRVRecord[style][client]) // Own record
 					{
 						PlayUnstoppableSound(client);
 						CPrintToChat(i, "%t", "Misc35", g_szChatPrefix, szName, g_szStyleRecordPrint[style], g_szFinalTime[client], g_szTimeDifference[client], g_StyleMapRank[style][client], count, g_szRecordStyleMapTime[style]);
-					}
-
-					if (g_bStyleMapSRVRecord[style][client])
-					{
-						// int r = GetRandomInt(1, 2);
-						PlayRecordSound(2);
-						CPrintToChat(i, "%t", "Misc36", g_szChatPrefix, szName, g_szStyleRecordPrint[style]);
 					}
 				}
 			}
@@ -4111,6 +4168,15 @@ stock void StyleFinishedMsgs(int client, int style)
 
 		if (g_StyleMapRank[style][client] == 99999 && IsValidClient(client))
 			CPrintToChat(client, "%t", "Misc19", g_szChatPrefix);
+			
+		// Send Announcements
+		if (g_bStyleMapSRVRecord[style][client])
+		{
+			char buffer[1024];
+			GetConVarString(g_hRecordAnnounceDiscord, buffer, 1024);
+			if (!StrEqual(buffer, "") && style < 4)
+				sendDiscordAnnouncement(szName, g_szMapName, g_szFinalTime[client], szRecordDiff, style);
+		}
 
 		CalculatePlayerRank(client, style);
 		return;
@@ -4123,7 +4189,7 @@ stock void PrintChatBonusStyle (int client, int zGroup, int style, int rank = 0)
 	return;
 
 	float RecordDiff;
-	char szRecordDiff[54], szName[MAX_NAME_LENGTH];
+	char szRecordDiff[32], szName[MAX_NAME_LENGTH];
 
 	if (rank == 0)
 	rank = g_StyleMapRankBonus[style][zGroup][client];
@@ -4135,8 +4201,8 @@ stock void PrintChatBonusStyle (int client, int zGroup, int style, int rank = 0)
 		PlayRecordSound(2);
 
 		RecordDiff = g_fStyleOldBonusRecordTime[style][zGroup] - g_fFinalTime[client];
-		FormatTimeFloat(client, RecordDiff, 3, szRecordDiff, 54);
-		Format(szRecordDiff, 54, "-%s", szRecordDiff);
+		FormatTimeFloat(client, RecordDiff, 3, szRecordDiff, 32);
+		Format(szRecordDiff, 32, "-%s", szRecordDiff);
 	}
 	if (g_bBonusFirstRecord[client] && g_bBonusSRVRecord[client])
 	{
@@ -4169,6 +4235,15 @@ stock void PrintChatBonusStyle (int client, int zGroup, int style, int rank = 0)
 
 	if (rank == 9999999 && IsValidClient(client))
 		CPrintToChat(client, "%t", "Misc19", g_szChatPrefix);
+		
+	// Send Announcements
+	if (g_bBonusSRVRecord[client])
+	{
+		char buffer[1024];
+		GetConVarString(g_hBonusRecordAnnounceDiscord, buffer, 1024);
+		if (!StrEqual(buffer, "") && style < 4)
+			sendDiscordAnnouncementBonus(szName, g_szMapName, g_szFinalTime[client], szRecordDiff, zGroup, style);
+	}
 
 	CalculatePlayerRank(client, style);
 	return;
@@ -4419,123 +4494,71 @@ public void totalTimeForHumans(int unix, char[] buffer, int size)
 	}
 }
 
-public void sendDiscordAnnouncement(char szName[32], char szMapName[128], char szTime[32])
+public void sendDiscordAnnouncement(char szName[32], char szMapName[128], char szTime[32], char szDiff[32], int style)
 {
-	char webhook[1024];
-	GetConVarString(g_hRecordAnnounceDiscord, webhook, 1024);
-	if (StrEqual(webhook, ""))
-		return;
-		
-	// Send Discord Announcement
-	DiscordWebHook hook = new DiscordWebHook(webhook);
-	hook.SlackMode = true;
-
-	hook.SetUsername("SurfTimer Records");
-
-	MessageEmbed Embed = new MessageEmbed();
-
-	// Get a random colour for the.. left colour
-	int hex = GetRandomInt(0, 6);
-	switch (hex)
-	{
-		case 0: Embed.SetColor("#ff0000");
-		case 1: Embed.SetColor("#ff7F00");
-		case 2: Embed.SetColor("#ffD700");
-		case 3: Embed.SetColor("#00aa00");
-		case 4: Embed.SetColor("#0000ff");
-		case 5: Embed.SetColor("#6600ff");
-		case 6: Embed.SetColor("#8b00ff");
-		default: Embed.SetColor("#ff0000");
+    char webhook[1024];
+    GetConVarString(g_hRecordAnnounceDiscord, webhook, 1024);
+    if (StrEqual(webhook, ""))
+        return;
+    // Send Discord Announcement
+    DiscordWebHook hook = new DiscordWebHook(webhook);
+    hook.SlackMode = true;
+ 
+    hook.SetUsername("Surftimer Records");
+ 
+    // Format The Message
+    char szMessage[256];
+ 
+	// Format(szMessage, sizeof(szMessage), "%s has beaten the %s map record in the %s server with a time of %s", szName, szMapName, g_sServerName, szTime);
+	if(style > 0) {
+		Format(szMessage, sizeof(szMessage), "```md\n# World Record: %s #\n\n[%s] beat the map World Record on < %s > with time < %s [%s] > in the %s on < = CS:GO = > ]:```", g_szStyleMenuPrint[style], szName, szMapName, szTime, szDiff, g_sServerName);
+	}else{
+		Format(szMessage, sizeof(szMessage), "```md\n# World Record: Normal #\n\n[%s] beat the map World Record on < %s > with time < %s [%s] > in the %s on < = CS:GO = > ]:```", szName, szMapName, szTime, szDiff, g_sServerName);
 	}
-
-	Embed.SetTitle("**NEW MAP RECORD**");
-
-	// Format The Message
-	char szMessage[256];
-
-	Format(szMessage, sizeof(szMessage), "%s has beaten the %s map record in the %s server with a time of %s", szName, szMapName, g_sServerName, szTime);
-
-	// Get A Random Emoji
-	int emoji = GetRandomInt(0, 3);
-	char szEmoji[128];
-	switch (emoji)
-	{
-		case 0: Format(szEmoji, sizeof(szEmoji), ":ok_hand: :ok_hand: :ok_hand: :ok_hand: :ok_hand:");
-		case 1: Format(szEmoji, sizeof(szEmoji), ":thinking: :thinking: :thinking: :thinking: :thinking:");
-		case 2: Format(szEmoji, sizeof(szEmoji), ":fire: :fire: :fire: :fire: :fire:");
-		case 3: Format(szEmoji, sizeof(szEmoji), ":scream: :scream: :scream: :scream: :scream:");
-		default: Format(szEmoji, sizeof(szEmoji), ":ok_hand: :ok_hand: :ok_hand: :ok_hand: :ok_hand:");
-	}
-
-	Embed.AddField(szEmoji, szMessage, false);
-
-	hook.Embed(Embed);
-	hook.Send();
-	delete hook;
+ 
+    hook.SetContent(szMessage);
+	
+    hook.Send();
+    delete hook;
 }
 
-public void sendDiscordAnnouncementBonus(char szName[32], char szMapName[128], char szTime[32], int zGroup)
+public void sendDiscordAnnouncementBonus(char szName[32], char szMapName[128], char szTime[32], char szDiff[32], int zGroup, int style)
 {
-	char webhook[1024];
-	GetConVarString(g_hBonusRecordAnnounceDiscord, webhook, 1024);
-	if (StrEqual(webhook, ""))
-		return;
-		
-	// Send Discord Announcement
-	DiscordWebHook hook = new DiscordWebHook(webhook);
-	hook.SlackMode = true;
-
-	hook.SetUsername("SurfTimer Bonus Records");
-
-	MessageEmbed Embed = new MessageEmbed();
-
-	// Get a random colour for the.. left colour
-	int hex = GetRandomInt(0, 6);
-	switch (hex)
-	{
-		case 0: Embed.SetColor("#ff0000");
-		case 1: Embed.SetColor("#ff7F00");
-		case 2: Embed.SetColor("#ffD700");
-		case 3: Embed.SetColor("#00aa00");
-		case 4: Embed.SetColor("#0000ff");
-		case 5: Embed.SetColor("#6600ff");
-		case 6: Embed.SetColor("#8b00ff");
-		default: Embed.SetColor("#ff0000");
+    char webhook[1024];
+    GetConVarString(g_hBonusRecordAnnounceDiscord, webhook, 1024);
+    if (StrEqual(webhook, ""))
+        return;
+    // Send Discord Announcement
+    DiscordWebHook hook = new DiscordWebHook(webhook);
+    hook.SlackMode = true;
+ 
+    hook.SetUsername("Surftimer Records");
+	
+    // Format The Message
+    char szMessage[256];
+ 
+	// Format(szMessage, sizeof(szMessage), "%s has beaten the %s map record in the %s server with a time of %s", szName, szMapName, g_sServerName, szTime);
+	if(style > 0) {
+		Format(szMessage, sizeof(szMessage), "```md\n# World Record: %s #\n\n[%s] beat the bonus %i World Record on < %s > with time < %s [%s] > in the %s on < = CS:GO = > ]:```", g_szStyleMenuPrint[style], szName, zGroup, szMapName, szTime, szDiff, g_sServerName);
+	}else{
+		Format(szMessage, sizeof(szMessage), "```md\n# World Record: Normal #\n\n[%s] beat the bonus %i World Record on < %s > with time < %s [%s] > in the %s on < = CS:GO = > ]:```", szName, zGroup, szMapName, szTime, szDiff, g_sServerName);
 	}
 
-	Embed.SetTitle("**NEW BONUS RECORD**");
-
-	// Format The Message
-	char szMessage[256];
-
-	Format(szMessage, sizeof(szMessage), "%s has beaten the %s bonus %i record in the %s server with a time of %s", szName, szMapName, zGroup, g_sServerName, szTime);
-
-	// Get A Random Emoji
-	int emoji = GetRandomInt(0, 3);
-	char szEmoji[128];
-	switch (emoji)
-	{
-		case 0: Format(szEmoji, sizeof(szEmoji), ":ok_hand: :ok_hand: :ok_hand: :ok_hand: :ok_hand:");
-		case 1: Format(szEmoji, sizeof(szEmoji), ":thinking: :thinking: :thinking: :thinking: :thinking:");
-		case 2: Format(szEmoji, sizeof(szEmoji), ":fire: :fire: :fire: :fire: :fire:");
-		case 3: Format(szEmoji, sizeof(szEmoji), ":scream: :scream: :scream: :scream: :scream:");
-		default: Format(szEmoji, sizeof(szEmoji), ":ok_hand: :ok_hand: :ok_hand: :ok_hand: :ok_hand:");
-	}
-
-	Embed.AddField(szEmoji, szMessage, false);
-
-	hook.Embed(Embed);
-	hook.Send();
-	delete hook;
+	hook.SetContent(szMessage);
+	
+    hook.Send();
+    delete hook;
 }
 
 bool IsPlayerVip(int client, bool admin = true, bool reply = true)
 {
 	if (admin)
 	{
-		if (CheckCommandAccess(client, "", ADMFLAG_ROOT))
-			return true;
+		//if (CheckCommandAccess(client, "", ADMFLAG_ROOT))
+			//return true;
 	}
+
+	PrintToChat(client, "Is Vip2?: %i", g_bVip[client]);
 
 	if (!g_bVip[client])
 	{

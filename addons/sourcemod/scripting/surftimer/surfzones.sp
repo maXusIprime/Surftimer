@@ -312,6 +312,25 @@ public void StartTouch(int client, int action[3])
 			g_iCurrentStyle[client] = g_iInitalStyle[client];
 			lastCheckpoint[g_iClientInZone[client][2]][client] = 1;
 
+			// Start recording
+			if ((!IsFakeClient(client) && GetConVarBool(g_hReplayBot)) && !g_bPracticeMode[client])
+			{
+				if (!IsPlayerAlive(client) || GetClientTeam(client) == 1)
+				{
+					if (g_hRecording[client] != null)
+						StopRecording(client);
+				}
+				else
+				{
+					if (g_hRecording[client] != null)
+						StopRecording(client);
+					StartRecording(client);
+					
+					if (g_bhasStages)
+						Stage_StartRecording(client);
+				}
+			}
+			
 			if (g_bhasStages)
 			{
 				g_bWrcpTimeractivated[client] = false;
@@ -413,6 +432,8 @@ public void StartTouch(int client, int action[3])
 
 				if (g_bWrcpTimeractivated[client])
 					g_bWrcpTimeractivated[client] = false;
+					
+				Stage_StartRecording(client);
 			}
 		}
 		else if (action[0] == 4) // Checkpoint Zone
@@ -1781,6 +1802,7 @@ public void EditorMenu(int client)
 		editMenu.AddItem("", "Start Drawing the Zone");
 	else
 		editMenu.AddItem("", "Restart the Zone Drawing");
+	editMenu.AddItem("","Autozone [BETA]");
 
 	// If editing an existing zone
 	if (g_Editing[client] > 0)
@@ -1864,7 +1886,14 @@ public int MenuHandler_Editor(Handle tMenu, MenuAction action, int client, int i
 					TR_GetEndPosition(g_Positions[client][0]);
 					EditorMenu(client);
 				}
-				case 1: // Setting zone type
+				case 1:
+				{
+					// AutoZone
+					autoZone(client);
+					
+					EditorMenu(client);
+				}
+				case 2: // Setting zone type
 				{
 					g_bEditZoneType[client] = true;
 					if (g_CurrentSelectedZoneGroup[client] == 0)
@@ -1873,7 +1902,7 @@ public int MenuHandler_Editor(Handle tMenu, MenuAction action, int client, int i
 						SelectBonusZoneType(client);
 
 				}
-				case 2:
+				case 3:
 				{
 					// Pause
 					if (g_Editing[client] == 2)
@@ -1885,7 +1914,7 @@ public int MenuHandler_Editor(Handle tMenu, MenuAction action, int client, int i
 					}
 					EditorMenu(client);
 				}
-				case 3:
+				case 4:
 				{
 					// Delete
 					if (g_ClientSelectedZone[client] != -1)
@@ -1896,7 +1925,7 @@ public int MenuHandler_Editor(Handle tMenu, MenuAction action, int client, int i
 					resetSelection(client);
 					ZoneMenu(client);
 				}
-				case 4:
+				case 5:
 				{
 					// Save
 					if (g_ClientSelectedZone[client] != -1)
@@ -1916,7 +1945,7 @@ public int MenuHandler_Editor(Handle tMenu, MenuAction action, int client, int i
 					resetSelection(client);
 					ZoneMenu(client);
 				}
-				case 5:
+				case 6:
 				{
 					// Set team
 					++g_CurrentZoneTeam[client];
@@ -1924,7 +1953,7 @@ public int MenuHandler_Editor(Handle tMenu, MenuAction action, int client, int i
 						g_CurrentZoneTeam[client] = 0;
 					EditorMenu(client);
 				}
-				case 6:
+				case 7:
 				{
 					// Teleport
 					float ZonePos[3];
@@ -1937,22 +1966,22 @@ public int MenuHandler_Editor(Handle tMenu, MenuAction action, int client, int i
 					TeleportEntity(client, ZonePos, NULL_VECTOR, NULL_VECTOR);
 					EditorMenu(client);
 				}
-				case 7:
+				case 8:
 				{
 					// Scaling
 					ScaleMenu(client);
 				}
-				case 8:
+				case 9:
 				{
 					ChangeZonesHook(client);
 				}
-				case 9:
+				case 10:
 				{
 					// Set Target Name
 					g_iWaitingForResponse[client] = 5;
 					CPrintToChat(client, "%t", "SurfZones9", g_szChatPrefix);
 				}
-				case 10:
+				case 11:
 				{
 					// One jump limit
 					if (g_mapZones[g_ClientSelectedZone[client]][oneJumpLimit] == 1)
@@ -1962,7 +1991,7 @@ public int MenuHandler_Editor(Handle tMenu, MenuAction action, int client, int i
 					
 					EditorMenu(client);
 				}
-				case 11:
+				case 12:
 				{
 					// prespeed
 					PrespeedMenu(client);
@@ -2376,6 +2405,167 @@ stock void RemoveZones()
 			}
 		}
 	}
+}
+
+public void autoZone(int client)
+{
+	//Set Bool to false so if no zone can be found we dont break something
+	g_bAutoZone[client] = false;
+	float pos[3];
+	GetAimOrigin(client, pos);
+	//Main Method for getting zones. Will add 2 positions to g_fAutoZoneBlock on success
+	GetBoxFromPoint(pos, g_fAutoZoneBlock[client], client);
+	//Check for success
+	if(g_bAutoZone[client])
+	{
+		//Read values from method
+		g_Positions[client][0] = g_fAutoZoneBlock[client][0];
+		g_Positions[client][1] = g_fAutoZoneBlock[client][1];
+		//Set Client to be paused 
+		g_Editing[client] = 2;
+		CPrintToChat(client, "%s Zone Found. Press Save To save zone", g_szChatPrefix);
+		//Add 50.0 units in height onto zone. Not sure about this part. Could be a ck_autozone_height cvar...?
+		g_Positions[client][0][2] = FloatAdd(g_Positions[client][0][2], 50.0);
+		//Draw the zone to the client, because as the g_editing is paused it will not refresh automatically.
+		DrawBeamBox(client);
+	}
+}
+// Credits for finding corners of a block to: justshoot, Zipcore
+stock int TraceWallOrigin(float fOrigin[3], float vAngles[3], float result[3])
+{
+	Handle trace = TR_TraceRayFilterEx(fOrigin, vAngles, MASK_SHOT, RayType_Infinite, TraceEntityFilterPlayer);
+	if (TR_DidHit(trace))
+	{
+		TR_GetEndPosition(result, trace);
+		CloseHandle(trace);
+		return 1;
+	}
+	CloseHandle(trace);
+	return 0;
+}
+
+
+stock int TraceGroundOrigin(float fOrigin[3], float result[3])
+{
+	float vAngles[3] =  { 90.0, 0.0, 0.0 };
+	Handle trace = TR_TraceRayFilterEx(fOrigin, vAngles, MASK_SHOT, RayType_Infinite, TraceEntityFilterPlayer);
+	if (TR_DidHit(trace))
+	{
+		TR_GetEndPosition(result, trace);
+		CloseHandle(trace);
+		return 1;
+	}
+	CloseHandle(trace);
+	return 0;
+}
+
+
+stock void GetBeamEndOrigin(float fOrigin[3], float vAngles[3], float distance, float result[3])
+{
+	float AngleVector[3];
+	GetAngleVectors(vAngles, AngleVector, NULL_VECTOR, NULL_VECTOR);
+	NormalizeVector(AngleVector, AngleVector);
+	ScaleVector(AngleVector, distance);
+	AddVectors(fOrigin, AngleVector, result);
+}
+
+
+stock void GetBeamHitOrigin(float fOrigin[3], float vAngles[3], float result[3])
+{
+	Handle trace = TR_TraceRayFilterEx(fOrigin, vAngles, MASK_SHOT, RayType_Infinite, TraceEntityFilterPlayer);
+	if (TR_DidHit(trace))
+	{
+		TR_GetEndPosition(result, trace);
+		CloseHandle(trace);
+	}
+}
+
+
+stock int GetAimOrigin(int client, float hOrigin[3])
+{
+	float vAngles[3], fOrigin[3];
+	GetClientEyePosition(client, fOrigin);
+	GetClientEyeAngles(client, vAngles);
+	
+	Handle trace = TR_TraceRayFilterEx(fOrigin, vAngles, MASK_SHOT, RayType_Infinite, TraceEntityFilterPlayer);
+	
+	if (TR_DidHit(trace))
+	{
+		TR_GetEndPosition(hOrigin, trace);
+		CloseHandle(trace);
+		return 1;
+	}
+	
+	CloseHandle(trace);
+	return 0;
+}
+
+
+stock void GetBoxFromPoint(float origin[3], float result[2][3], int client)
+{
+	float temp[3];
+	temp = origin;
+	temp[2] += 1.0;
+	float ang[4][3];
+	ang[1][1] = 90.0;
+	ang[2][1] = 180.0;
+	ang[3][1] = -90.0;
+	bool edgefound[4];
+	float dist[4];
+	float tempdist[4], position[3], ground[3], Last[4], Edge[4][3];
+	for (int i = 0; i < 4; i++)
+	{
+		TraceWallOrigin(temp, ang[i], Edge[i]);
+		tempdist[i] = GetVectorDistance(temp, Edge[i]);
+		Last[i] = origin[2];
+		while (dist[i] < tempdist[i])
+		{
+			if (edgefound[i])
+				break;
+			GetBeamEndOrigin(temp, ang[i], dist[i], position);
+			TraceGroundOrigin(position, ground);
+			if ((Last[i] != ground[2]) && (Last[i] > ground[2]))
+			{
+				Edge[i] = ground;
+				edgefound[i] = true;
+			}
+			Last[i] = ground[2];
+			dist[i] += 10.0;
+		}
+		if (!edgefound[i])
+		{
+			TraceGroundOrigin(Edge[i], Edge[i]);
+			edgefound[i] = true;
+		}
+		else
+		{
+			ground = Edge[i];
+			ground[2] = origin[2];
+			MakeVectorFromPoints(ground, origin, position);
+			GetVectorAngles(position, ang[i]);
+			ground[2] -= 1.0;
+			GetBeamHitOrigin(ground, ang[i], Edge[i]);
+		}
+		Edge[i][2] = origin[2];
+	}
+	if (edgefound[0] && edgefound[1] && edgefound[2] && edgefound[3])
+	{
+		result[0][2] = origin[2];
+		result[1][2] = origin[2];
+		result[0][0] = Edge[0][0];
+		result[0][1] = Edge[1][1];
+		result[1][0] = Edge[2][0];
+		result[1][1] = Edge[3][1];
+		g_bAutoZone[client] = true;
+	}
+	else
+		CPrintToChat(client, "%s %cNo edges for Zone Found.", g_szChatPrefix);
+}
+
+
+public bool TraceEntityFilterPlayer(int entity, int contentsMask)
+{
+	return entity > MaxClients;
 }
 
 void resetZone(int zoneIndex)

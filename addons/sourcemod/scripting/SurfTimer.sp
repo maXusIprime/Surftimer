@@ -497,6 +497,7 @@ int g_OldStyleMapRank[MAX_STYLES][MAXPLAYERS + 1];
 float g_fPersonalStyleRecord[MAX_STYLES][MAXPLAYERS + 1];
 char g_szPersonalStyleRecord[MAX_STYLES][MAXPLAYERS + 1][256];
 float g_fRecordStyleMapTime[MAX_STYLES];
+float g_fOldRecordStyleMapTime[MAX_STYLES];
 char g_szRecordStyleMapTime[MAX_STYLES][64];
 char g_szRecordStylePlayer[MAX_STYLES][MAX_NAME_LENGTH];
 char g_szRecordStyleMapSteamID[MAX_STYLES][MAX_NAME_LENGTH];
@@ -614,6 +615,10 @@ int g_iTotalConnections[MAXPLAYERS + 1];
 Menu g_mTriggerMultipleMenu = null;
 
 // Editing Zones
+
+//AutoZone
+bool g_bAutoZone[MAXPLAYERS + 1];
+float g_fAutoZoneBlock[MAXPLAYERS + 1][2][3];
 
 // If editing zone type
 bool g_bEditZoneType[MAXPLAYERS + 1];
@@ -839,6 +844,9 @@ char g_szTimeDifference[MAXPLAYERS + 1][32];
 
 // Record map time in seconds
 float g_fRecordMapTime;
+
+// Old Map Record
+float g_fOldRecordMapTime;
 
 // Record map time in 00:00:00 format
 char g_szRecordMapTime[64];
@@ -1550,6 +1558,8 @@ char RadioCMDS[][] = 													// Disable radio commands
 #include "surftimer/mapsettings.sp"
 #include "surftimer/cvote.sp"
 #include "surftimer/vip.sp"
+
+#include "surftimer/newmap.sp"
 
 /*====================================
 =               Events               =
@@ -2678,6 +2688,8 @@ public void OnPluginStart()
 	CreateCommandListeners();
 
 	db_setupDatabase();
+	
+	CreateCommandsNewMap();
 
 	// exec surftimer.cfg
 	AutoExecConfig(true, "surftimer");

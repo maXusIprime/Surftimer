@@ -304,13 +304,14 @@ public void SQL_CheckVIPAdminCallback(Handle owner, Handle hndl, const char[] er
 	if (SQL_HasResultSet(hndl) && SQL_FetchRow(hndl))
 	{
 		g_bVip[client] = view_as<bool>(SQL_FetchInt(hndl, 0));
+		PrintToChat(client, "Is Vip?: %i", g_bVip[client]);
 		g_bZoner[client] = view_as<bool>(SQL_FetchInt(hndl, 2));
 	}
 
 	if (!g_bVip[client] || !g_bZoner[client]) // No VIP or Zoner from database, let's check flags
 	{
-		if (CheckCommandAccess(client, "", g_VipFlag))
-			g_bVip[client] = true;
+		//if (CheckCommandAccess(client, "", g_VipFlag))
+			//g_bVip[client] = true;
 
 		if (CheckCommandAccess(client, "", g_ZonerFlag))
 			g_bZoner[client] = true;

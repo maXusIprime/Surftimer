@@ -1202,8 +1202,8 @@ public void Stage_StartRecording(int client)
 	char szName[MAX_NAME_LENGTH];
 	GetClientName(client, szName, MAX_NAME_LENGTH);
 
-	if (g_hRecording[client] == null)
-		StartRecording(client);
+	// if (g_hRecording[client] == null)
+	StartRecording(client);
 
 	g_StageRecStartFrame[client] = 0;
 	g_StageRecStartAT[client] = 0;

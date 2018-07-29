@@ -65,6 +65,39 @@ public void CL_OnStartTimerPress(int client)
 		g_iCurrentCheckpoint[client] = 0;
 		g_iCheckpointsPassed[client] = 0;
 		g_bIsValidRun[client] = false;
+		
+		if(!g_bPracticeMode[client] && !IsFakeClient(client))
+		{
+			// Get player velocity
+			float vecPlayerVelocity[3], fPlayerVelocity;
+
+			GetEntPropVector(client, Prop_Data, "m_vecVelocity", vecPlayerVelocity);
+			fPlayerVelocity = GetVectorLength(vecPlayerVelocity);
+
+			// Build Speed difference message
+			char speedMsg[128];
+			Format(speedMsg, sizeof(speedMsg), "%s Start: %d u/s", g_szChatPrefix, RoundToCeil(fPlayerVelocity));
+			CPrintToChat(client, speedMsg);
+		
+			for (int i = 1; i <= MaxClients; i++)
+			{
+				if (!IsClientInGame(i))
+					continue;
+ 
+				if (GetClientTeam(i) != CS_TEAM_SPECTATOR)
+					continue;
+ 
+				int ObserverMode = GetEntProp(i, Prop_Send, "m_iObserverMode");
+				if (ObserverMode != 4 && ObserverMode != 5)
+					continue;
+ 
+				int ObserverTarget = GetEntPropEnt(i, Prop_Send, "m_hObserverTarget");
+				if (ObserverTarget != client)
+					continue;
+ 
+				CPrintToChat(i, speedMsg);
+			}
+		}
 
 		if (!IsFakeClient(client))
 		{
@@ -91,7 +124,7 @@ public void CL_OnStartTimerPress(int client)
 	PlayButtonSound(client);
 
 	// Start recording for record bot
-	if ((!IsFakeClient(client) && GetConVarBool(g_hReplayBot)) || (!IsFakeClient(client) && GetConVarBool(g_hBonusBot)))
+	if (((!IsFakeClient(client) && GetConVarBool(g_hReplayBot)) || (!IsFakeClient(client) && GetConVarBool(g_hBonusBot))) && !g_hRecording[client])
 	{
 		if (!IsPlayerAlive(client) || GetClientTeam(client) == 1)
 		{
@@ -103,8 +136,8 @@ public void CL_OnStartTimerPress(int client)
 			if (g_hRecording[client] != null)
 				StopRecording(client);
 			StartRecording(client);
-			if (g_bhasStages)
-				Stage_StartRecording(client);
+			// if (g_bhasStages)
+				// Stage_StartRecording(client);
 		}
 	}
 }
@@ -218,7 +251,8 @@ public void CL_OnEndTimerPress(int client)
 				{
 					g_fReplayTimes[0][0] = g_fFinalTime[client];
 					g_bNewReplay[client] = true;
-					CreateTimer(3.0, ReplayTimer, GetClientUserId(client), TIMER_FLAG_NO_MAPCHANGE);
+					// rip endstrafe
+					CreateTimer(0.0, ReplayTimer, GetClientUserId(client), TIMER_FLAG_NO_MAPCHANGE);
 				}
 			}
 
@@ -246,6 +280,7 @@ public void CL_OnEndTimerPress(int client)
 				{
 					// New fastest time in map
 					g_bMapSRVRecord[client] = true;
+					g_fOldRecordMapTime = g_fRecordMapTime;
 					g_fRecordMapTime = g_fFinalTime[client];
 					Format(g_szRecordPlayer, MAX_NAME_LENGTH, "%s", szName);
 					FormatTimeFloat(1, g_fRecordMapTime, 3, g_szRecordMapTime, 64);
@@ -267,7 +302,8 @@ public void CL_OnEndTimerPress(int client)
 					{
 						g_bNewReplay[client] = true;
 						g_fReplayTimes[0][0] = g_fFinalTime[client];
-						CreateTimer(3.0, ReplayTimer, GetClientUserId(client), TIMER_FLAG_NO_MAPCHANGE);
+						// rip endstrafe
+						CreateTimer(0.0, ReplayTimer, GetClientUserId(client), TIMER_FLAG_NO_MAPCHANGE);
 					}
 					// wrCredits = 500;
 				}
@@ -279,7 +315,8 @@ public void CL_OnEndTimerPress(int client)
 				{
 					g_fReplayTimes[0][0] = g_fFinalTime[client];
 					g_bNewReplay[client] = true;
-					CreateTimer(3.0, ReplayTimer, GetClientUserId(client), TIMER_FLAG_NO_MAPCHANGE);
+					// rip endstrafe
+					CreateTimer(0.0, ReplayTimer, GetClientUserId(client), TIMER_FLAG_NO_MAPCHANGE);
 				}
 
 				g_bMapSRVRecord[client] = true;
@@ -351,7 +388,8 @@ public void CL_OnEndTimerPress(int client)
 					g_fReplayTimes[0][style] = g_fFinalTime[client];
 					g_bNewReplay[client] = true;
 					Handle pack;
-					CreateDataTimer(3.0, StyleReplayTimer, pack);
+					// rip endstrafe
+					CreateDataTimer(0.0, StyleReplayTimer, pack);
 					WritePackCell(pack, GetClientUserId(client));
 					WritePackCell(pack, style);
 				}
@@ -382,6 +420,7 @@ public void CL_OnEndTimerPress(int client)
 				{
 					// New fastest time in map
 					g_bStyleMapSRVRecord[style][client] = true;
+					g_fOldRecordStyleMapTime[style] = g_fRecordStyleMapTime[style];
 					g_fRecordStyleMapTime[style] = g_fFinalTime[client];
 					Format(g_szRecordStylePlayer[style], MAX_NAME_LENGTH, "%s", szName);
 					FormatTimeFloat(1, g_fRecordStyleMapTime[style], 3, g_szRecordStyleMapTime[style], 64);
@@ -391,7 +430,8 @@ public void CL_OnEndTimerPress(int client)
 						g_bNewReplay[client] = true;
 						g_fReplayTimes[0][style] = g_fFinalTime[client];
 						Handle pack;
-						CreateDataTimer(3.0, StyleReplayTimer, pack);
+						// rip endstrafe
+						CreateDataTimer(0.0, StyleReplayTimer, pack);
 						WritePackCell(pack, GetClientUserId(client));
 						WritePackCell(pack, style);
 					}
@@ -407,7 +447,8 @@ public void CL_OnEndTimerPress(int client)
 					g_bNewReplay[client] = true;
 					g_fReplayTimes[0][style] = g_fFinalTime[client];
 					Handle pack;
-					CreateDataTimer(3.0, StyleReplayTimer, pack);
+					// rip endstrafe
+					CreateDataTimer(0.0, StyleReplayTimer, pack);
 					WritePackCell(pack, GetClientUserId(client));
 					WritePackCell(pack, style);
 				}
@@ -478,7 +519,8 @@ public void CL_OnEndTimerPress(int client)
 					g_fReplayTimes[zGroup][0] = g_fFinalTime[client];
 					g_bNewBonus[client] = true;
 					Handle pack;
-					CreateDataTimer(3.0, BonusReplayTimer, pack);
+					// rip endstrafe
+					CreateDataTimer(0.0, BonusReplayTimer, pack);
 					WritePackCell(pack, GetClientUserId(client));
 					WritePackCell(pack, zGroup);
 				}
@@ -532,7 +574,8 @@ public void CL_OnEndTimerPress(int client)
 						g_bNewBonus[client] = true;
 						g_fReplayTimes[zGroup][0] = g_fFinalTime[client];
 						Handle pack;
-						CreateDataTimer(3.0, BonusReplayTimer, pack);
+						// rip endstrafe
+						CreateDataTimer(0.0, BonusReplayTimer, pack);
 						WritePackCell(pack, GetClientUserId(client));
 						WritePackCell(pack, zGroup);
 					}
@@ -546,7 +589,8 @@ public void CL_OnEndTimerPress(int client)
 					g_bNewBonus[client] = true;
 					g_fReplayTimes[zGroup][0] = g_fFinalTime[client];
 					Handle pack;
-					CreateDataTimer(3.0, BonusReplayTimer, pack);
+					// rip endstrafe
+					CreateDataTimer(0.0, BonusReplayTimer, pack);
 					WritePackCell(pack, GetClientUserId(client));
 					WritePackCell(pack, zGroup);
 				}
@@ -608,7 +652,8 @@ public void CL_OnEndTimerPress(int client)
 					g_fReplayTimes[zGroup][style] = g_fFinalTime[client];
 					g_bNewBonus[client] = true;
 					Handle pack;
-					CreateDataTimer(3.0, StyleBonusReplayTimer, pack);
+					// rip endstrafe
+					CreateDataTimer(0.0, StyleBonusReplayTimer, pack);
 					WritePackCell(pack, GetClientUserId(client));
 					WritePackCell(pack, zGroup);
 					WritePackCell(pack, style);
@@ -654,7 +699,8 @@ public void CL_OnEndTimerPress(int client)
 						g_bNewBonus[client] = true;
 						g_fReplayTimes[zGroup][style] = g_fFinalTime[client];
 						Handle pack;
-						CreateDataTimer(3.0, StyleBonusReplayTimer, pack);
+						// rip endstrafe
+						CreateDataTimer(0.0, StyleBonusReplayTimer, pack);
 						WritePackCell(pack, GetClientUserId(client));
 						WritePackCell(pack, zGroup);
 						WritePackCell(pack, style);
@@ -668,7 +714,8 @@ public void CL_OnEndTimerPress(int client)
 					g_bNewBonus[client] = true;
 					g_fReplayTimes[zGroup][style] = g_fFinalTime[client];
 					Handle pack;
-					CreateDataTimer(3.0, StyleBonusReplayTimer, pack);
+					// rip endstrafe
+					CreateDataTimer(0.0, StyleBonusReplayTimer, pack);
 					WritePackCell(pack, GetClientUserId(client));
 					WritePackCell(pack, zGroup);
 					WritePackCell(pack, style);
@@ -741,7 +788,39 @@ public void CL_OnStartWrcpTimerPress(int client)
 			g_bWrcpTimeractivated[client] = true;
 			g_bNotTeleporting[client] = true;
 			g_WrcpStage[client] = g_Stage[0][client];
-			Stage_StartRecording(client);
+			// Stage_StartRecording(client);
+			
+			if(g_Stage[0][client] > 1 && !g_bPracticeMode[client] && !IsFakeClient(client)) {
+				// Get player velocity
+				float vecPlayerVelocity[3], fPlayerVelocity;
+
+				GetEntPropVector(client, Prop_Data, "m_vecVelocity", vecPlayerVelocity);
+				fPlayerVelocity = GetVectorLength(vecPlayerVelocity);
+
+				// Build Speed difference message
+				char speedMsg[128];
+				Format(speedMsg, sizeof(speedMsg), "%s Stage %i: %d u/s", g_szChatPrefix, g_Stage[0][client], RoundToCeil(fPlayerVelocity));
+				CPrintToChat(client, speedMsg);
+		
+				for (int i = 1; i <= MaxClients; i++)
+				{
+					if (!IsClientInGame(i))
+						continue;
+ 
+					if (GetClientTeam(i) != CS_TEAM_SPECTATOR)
+						continue;
+ 
+					int ObserverMode = GetEntProp(i, Prop_Send, "m_iObserverMode");
+					if (ObserverMode != 4 && ObserverMode != 5)
+						continue;
+ 
+					int ObserverTarget = GetEntPropEnt(i, Prop_Send, "m_hObserverTarget");
+					if (ObserverTarget != client)
+						continue;
+ 
+					CPrintToChat(i, speedMsg);
+				}
+			}
 		}
 	}
 }

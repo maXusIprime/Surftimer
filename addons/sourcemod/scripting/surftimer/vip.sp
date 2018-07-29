@@ -108,7 +108,7 @@ public void db_selectVipStatus(char szSteamId[128], int iVip, int type)
 				}
 			}
 		}
-		Format(szQuery, 256, "UPDATE ck_vipadmins SET inuse = 0, active = 0 WHERE steamid = '%s';", szSteamId);
+		Format(szQuery, 256, "UPDATE ck_vipadmins SET inuse = 0, vip = 0, active = 0 WHERE steamid = '%s';", szSteamId);
 		SQL_TQuery(g_hDb, db_removeVipCallback, szQuery, client, DBPrio_Low);
 	}
 }
@@ -165,8 +165,10 @@ public void db_removeVipCallback(Handle owner, Handle hndl, const char[] error, 
 		return;
 	}
 
-	g_bCheckCustomTitle[client] = true;
-	db_CheckVIPAdmin(client, g_szSteamID[client]);
+	if (client >= 0) {
+		g_bCheckCustomTitle[client] = true;
+		db_CheckVIPAdmin(client, g_szSteamID[client]);
+	}
 }
 
 public void db_insertVip(char szSteamId[128], int iVip)
