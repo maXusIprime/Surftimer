@@ -379,7 +379,14 @@ public void teleportClient(int client, int zonegroup, int zone, bool stopTime)
                     if (destinationFound)
                         teleportEntitySafe(client, fLocation, ang, view_as<float>( { 0.0, 0.0, -100.0 } ), stopTime);
                     else
-                        teleportEntitySafe(client, g_fTeleLocation[client], NULL_VECTOR, view_as<float>( { 0.0, 0.0, -100.0 } ), stopTime);					
+                        teleportEntitySafe(client, g_fTeleLocation[client], NULL_VECTOR, view_as<float>( { 0.0, 0.0, -100.0 } ), stopTime);
+					
+					//!spec !back fix?
+					if (g_bhasStages && zone > 0)
+					{
+						g_Stage[zonegroup][client] = zone;
+						g_CurrentStage[client] = zone;
+					}
 				}
 				else // Teleport normally
 				{
