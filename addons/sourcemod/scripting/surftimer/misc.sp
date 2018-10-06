@@ -4679,7 +4679,7 @@ public void SendBugReport(int client)
 	GetClientName(client, sName, sizeof(sName));
 
 	// Format Message
-	char sMessage[512];
+	char sMessage[1024];
 	Format(sMessage, sizeof(sMessage), "%s (%s): %s", sName, g_szSteamID[client], g_sBugMsg[client]);
 	Embed.AddField("", sMessage, true);
 

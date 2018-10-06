@@ -328,7 +328,7 @@ public Action Say_Hook(int client, const char[] command, int argc)
 				case 1:
 				{
 					// BugMsg
-					Format(g_sBugMsg[client], sizeof(g_sBugMsg), sText);
+					Format(g_sBugMsg[client], 256, sText);
 					SendBugReport(client);
 				}
 				case 2:
