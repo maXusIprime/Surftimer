@@ -69,10 +69,7 @@ public void CL_OnStartTimerPress(int client)
 		if(!g_bPracticeMode[client] && !IsFakeClient(client))
 		{
 			// Get player velocity
-			float vecPlayerVelocity[3], fPlayerVelocity;
-
-			GetEntPropVector(client, Prop_Data, "m_vecVelocity", vecPlayerVelocity);
-			fPlayerVelocity = GetVectorLength(vecPlayerVelocity);
+			float fPlayerVelocity = GetSpeed(client);
 
 			// Build Speed difference message
 			char speedMsg[128];
@@ -792,10 +789,7 @@ public void CL_OnStartWrcpTimerPress(int client)
 			
 			if(g_Stage[0][client] > 1 && !g_bPracticeMode[client] && !IsFakeClient(client)) {
 				// Get player velocity
-				float vecPlayerVelocity[3], fPlayerVelocity;
-
-				GetEntPropVector(client, Prop_Data, "m_vecVelocity", vecPlayerVelocity);
-				fPlayerVelocity = GetVectorLength(vecPlayerVelocity);
+				float fPlayerVelocity = GetSpeed(client);
 
 				// Build Speed difference message
 				char speedMsg[128];

@@ -22,10 +22,18 @@ public Action Client_AddNewMap(int client, int args)
 
 public int NewMapMenuHandler(Menu menu, MenuAction action, int param1, int param2)
 {
-	if (action == MenuAction_End)
-		CloseHandle(menu);
+	if (action == MenuAction_Select)
+	{
+		char info[32];
+		GetMenuItem(menu, param2, info, sizeof(info));
+		ClientCommand(param1, "sm_mi %s", info);
+	}
+	else
+		if (action == MenuAction_End)
+		{
+			CloseHandle(menu);
+		}
 }
-
 
 public void db_ViewNewestMaps(int client)
 {
@@ -55,7 +63,7 @@ public void sql_selectNewestMapsCallback(Handle owner, Handle hndl, const char[]
 			SQL_FetchString(hndl, 0, szMapName, 64);
 			SQL_FetchString(hndl, 1, szDate, 64);
 			Format(szItem, sizeof(szItem), "%s since %s", szMapName, szDate);
-			AddMenuItem(menu, "", szItem, ITEMDRAW_DISABLED);
+			AddMenuItem(menu, szMapName, szItem);
 			i++;
 		}
 		if (i == 1)
@@ -72,9 +80,9 @@ public void sql_selectNewestMapsCallback(Handle owner, Handle hndl, const char[]
 
 public void db_InsertNewestMaps()
 {
-	char sql_insertNewestMaps[] = "INSERT INTO ck_newmaps (mapname) VALUES('%s');";
+	char sql_insertNewestMaps[] = "INSERT INTO ck_newmaps (mapname, staged, tier) VALUES('%s','%b','%i');";
 	char szQuery[512];
-	Format(szQuery, 512, sql_insertNewestMaps, g_szMapName);
+	Format(szQuery, 512, sql_insertNewestMaps, g_szMapName, g_bhasStages, g_iMapTier);
 	SQL_TQuery(g_hDb, SQL_CheckCallback, szQuery, DBPrio_Low);
 }
 
@@ -89,10 +97,9 @@ public void db_present()
 	}
 }
 
-
 public void db_upgradeDbNewMap()
 {
-	char sql_createNewestMaps[] = "CREATE TABLE IF NOT EXISTS ck_newmaps (mapname VARCHAR(32), date TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP, PRIMARY KEY(mapname)) DEFAULT CHARSET=utf8mb4;";
+	char sql_createNewestMaps[] = "CREATE TABLE IF NOT EXISTS ck_newmaps (mapname VARCHAR(32), staged BOOLEAN, tier INT NOT NULL DEFAULT '0', date TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP, PRIMARY KEY(mapname)) DEFAULT CHARSET=utf8mb4;";
 	
 	Transaction createTableTnx = SQL_CreateTransaction();
 

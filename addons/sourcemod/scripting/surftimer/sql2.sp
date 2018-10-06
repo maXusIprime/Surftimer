@@ -304,7 +304,6 @@ public void SQL_CheckVIPAdminCallback(Handle owner, Handle hndl, const char[] er
 	if (SQL_HasResultSet(hndl) && SQL_FetchRow(hndl))
 	{
 		g_bVip[client] = view_as<bool>(SQL_FetchInt(hndl, 0));
-		PrintToChat(client, "Is Vip?: %i", g_bVip[client]);
 		g_bZoner[client] = view_as<bool>(SQL_FetchInt(hndl, 2));
 	}
 

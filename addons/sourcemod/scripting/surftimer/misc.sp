@@ -380,13 +380,6 @@ public void teleportClient(int client, int zonegroup, int zone, bool stopTime)
                         teleportEntitySafe(client, fLocation, ang, view_as<float>( { 0.0, 0.0, -100.0 } ), stopTime);
                     else
                         teleportEntitySafe(client, g_fTeleLocation[client], NULL_VECTOR, view_as<float>( { 0.0, 0.0, -100.0 } ), stopTime);
-					
-					//!spec !back fix?
-					if (g_bhasStages && zone > 0)
-					{
-						g_Stage[zonegroup][client] = zone;
-						g_CurrentStage[client] = zone;
-					}
 				}
 				else // Teleport normally
 				{
@@ -1296,23 +1289,10 @@ public void LimitSpeedNew(int client)
 
 	float fVel[3];
 	GetEntPropVector(client, Prop_Data, "m_vecVelocity", fVel);
-	// Determine how much each vector must be scaled for the magnitude to equal the limit
-    // scale = limit / (vx^2 + vy^2)^0.5)
-    // Derived from Pythagorean theorem, where the hypotenuse represents the magnitude of velocity,
-    // and the two legs represent the x and y velocity components.
-    // As a side effect, velocity component signs are also handled.
-	float scale = FloatDiv(speedCap, SquareRoot( FloatAdd( Pow(fVel[0], 2.0), Pow(fVel[1], 2.0) ) ) );
-
-	 // A scale < 1 indicates a magnitude > limit
-	if (scale < 1.0)
+	
+	
+	if (g_bInStartZone[client] || g_bInStageZone[client])
 	{
-		if (g_bInStageZone[client] && g_bNewStage[client])
-		{
-			g_bNewStage[client] = false;
-			g_bLeftZone[client] = false;
-			return;
-		}
-
 		if (GetEntityFlags(client) & FL_ONGROUND)
 		{
 			g_iTicksOnGround[client]++;
@@ -1323,6 +1303,24 @@ public void LimitSpeedNew(int client)
 				return;
 			}
 		}
+	}
+
+	// Determine how much each vector must be scaled for the magnitude to equal the limit
+	// scale = limit / (vx^2 + vy^2)^0.5)
+	// Derived from Pythagorean theorem, where the hypotenuse represents the magnitude of velocity,
+	// and the two legs represent the x and y velocity components.
+	// As a side effect, velocity component signs are also handled.
+	float scale = FloatDiv(speedCap, SquareRoot( FloatAdd( Pow(fVel[0], 2.0), Pow(fVel[1], 2.0) ) ) );
+
+	// A scale < 1 indicates a magnitude > limit
+	if (scale < 1.0)
+	{
+		// if (g_bInStageZone[client] && g_bNewStage[client])
+		// {
+		// 	g_bNewStage[client] = false;
+		// 	g_bLeftZone[client] = false;
+		// 	return;
+		// }
 
 		// Reduce each vector by the appropriate amount
 		float speed = SquareRoot(Pow(fVel[0], 2.0) + Pow(fVel[1], 2.0));
@@ -1367,6 +1365,50 @@ public void LimitMaxSpeed(int client, float fMaxSpeed)
 		ScaleVector(CurVelVec, fMaxSpeed);
 		TeleportEntity(client, NULL_VECTOR, NULL_VECTOR, CurVelVec);
 	}
+}
+
+public void LimitSpeedZ(int client)
+{
+	/* Dont limit speed in these conditions:
+	 * Practice mode
+	 * No end zone in current zonegroup
+	 * End Zone
+	 * Checkpoint Zone
+	 * Misc Zones
+	*/
+	if (!IsValidClient(client) || !IsPlayerAlive(client) || IsFakeClient(client) || g_bPracticeMode[client] || g_mapZonesTypeCount[g_iClientInZone[client][2]][2] == 0 || g_iClientInZone[client][3] < 0 || g_iClientInZone[client][0] == 2 || g_iClientInZone[client][0] == 4 || g_iClientInZone[client][0] >= 6)
+		return;
+
+	float speedCap = 0.0, CurVelVec[3];
+	speedCap = g_mapZones[g_iClientInZone[client][3]][preSpeed];
+
+	if (speedCap == 0.0)
+		return;
+
+	GetEntPropVector(client, Prop_Data, "m_vecVelocity", CurVelVec);
+
+	if (CurVelVec[0] == 0.0)
+		CurVelVec[0] = 1.0;
+	if (CurVelVec[1] == 0.0)
+		CurVelVec[1] = 1.0;
+	if (CurVelVec[2] == 0.0)
+		CurVelVec[2] = 1.0;
+
+	float currentspeed = SquareRoot(Pow(CurVelVec[0], 2.0) + Pow(CurVelVec[1], 2.0));
+	float z = SquareRoot(Pow(CurVelVec[2], 2.0));
+	
+	if (z > speedCap)
+	{
+		CurVelVec[2] = 0.0;
+	}
+
+	if (currentspeed > speedCap)
+	{
+		NormalizeVector(CurVelVec, CurVelVec);
+		ScaleVector(CurVelVec, (speedCap - 100.0));
+	}
+	
+	TeleportEntity(client, NULL_VECTOR, NULL_VECTOR, CurVelVec);
 }
 
 public bool Base_TraceFilter(int entity, int contentsMask, any data)
@@ -3101,7 +3143,7 @@ public void SpecListMenuDead(int client) // What Spectators see
 						if (ObservedUser == g_RecordBot)
 							Format(g_szPlayerPanelText[client], 512, "Map Replay\n%s (%s)\n \nSpecs (%i):\n%s\n \n%s\n", g_szReplayName, g_szReplayTime, count, sSpecs, szStage);
 						else if (ObservedUser == g_BonusBot)
-							Format(g_szPlayerPanelText[client], 512, "Bonus Replay\n%s (%s)\n \nSpecs (%i):\n%s\n \nBonus\n", g_szBonusName, g_szBonusTime, count, sSpecs);
+							Format(g_szPlayerPanelText[client], 512, "Bonus Replay\n%s (%s)\n \nSpecs (%i):\n%s\n \nBonus %i\n", g_szBonusName, g_szBonusTime, count, sSpecs, g_iClientInZone[g_BonusBot][2]);
 						else if (ObservedUser == g_WrcpBot)
 						{
 							if (g_bManualStageReplayPlayback)
@@ -4564,8 +4606,6 @@ bool IsPlayerVip(int client, bool admin = true, bool reply = true)
 		//if (CheckCommandAccess(client, "", ADMFLAG_ROOT))
 			//return true;
 	}
-
-	PrintToChat(client, "Is Vip2?: %i", g_bVip[client]);
 
 	if (!g_bVip[client] && !CheckCommandAccess(client, "", ADMFLAG_ROOT))
 	{

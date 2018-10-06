@@ -3096,7 +3096,6 @@ public void SQL_LastRunCallback(Handle owner, Handle hndl, const char[] error, a
 	g_bTimerRunning[data] = false;
 	if (SQL_HasResultSet(hndl) && SQL_FetchRow(hndl) && IsValidClient(data))
 	{
-
 		// "SELECT cords1,cords2,cords3, angle1, angle2, angle3,runtimeTmp, EncTickrate, Stage, zonegroup FROM ck_playertemp WHERE steamid = '%s' AND mapname = '%s';";
 
 		// Get last psition
@@ -3111,9 +3110,9 @@ public void SQL_LastRunCallback(Handle owner, Handle hndl, const char[] error, a
 		int zGroup;
 		zGroup = SQL_FetchInt(hndl, 9);
 
-		g_iClientInZone[data][2] = zGroup;
+		// g_iClientInZone[data][2] = zGroup;
 
-		g_Stage[zGroup][data] = SQL_FetchInt(hndl, 8);
+		// g_Stage[zGroup][data] = SQL_FetchInt(hndl, 8);
 
 		// Set new start time
 		float fl_time = SQL_FetchFloat(hndl, 6);
@@ -3135,6 +3134,8 @@ public void SQL_LastRunCallback(Handle owner, Handle hndl, const char[] error, a
 			{
 				if (g_bLateLoaded && IsPlayerAlive(data) && !g_specToStage[data])
 				{
+					g_iClientInZone[data][2] = zGroup;
+					g_Stage[zGroup][data] = SQL_FetchInt(hndl, 8);
 					g_bPositionRestored[data] = true;
 					TeleportEntity(data, g_fPlayerCordsRestore[data], g_fPlayerAnglesRestore[data], NULL_VECTOR);
 					g_bRestorePosition[data] = false;
@@ -4030,7 +4031,7 @@ public void db_insertZone(int zoneid, int zonetype, int zonetypeid, float pointa
 	Format(zName, 128, g_szZoneGroupName[zonegroup]);
 
 	// char sql_insertZones[] = "INSERT INTO ck_zones (mapname, zoneid, zonetype, zonetypeid, pointa_x, pointa_y, pointa_z, pointb_x, pointb_y, pointb_z, vis, team, zonegroup, zonename, hookname, targetname, onejumplimit, prespeed) VALUES ('%s', '%i', '%i', '%i', '%f', '%f', '%f', '%f', '%f', '%f', '%i', '%i', '%i','%s','%s','%s',%i,%f)";
-	Format(szQuery, 1024, sql_insertZones, g_szMapName, zoneid, zonetype, zonetypeid, pointax, pointay, pointaz, pointbx, pointby, pointbz, vis, team, zonegroup, zName, "None", "player", 1, 250.0);
+	Format(szQuery, 1024, sql_insertZones, g_szMapName, zoneid, zonetype, zonetypeid, pointax, pointay, pointaz, pointbx, pointby, pointbz, vis, team, zonegroup, zName, "None", "player", 1, 350.0);
 	SQL_TQuery(g_hDb, SQL_insertZonesCallback, szQuery, 1, DBPrio_Low);
 }
 
