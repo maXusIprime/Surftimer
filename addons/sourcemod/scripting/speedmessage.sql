@@ -1,0 +1,2 @@
+ALTER TABLE `ck_playeroptions2` ADD COLUMN `speedmessagemode` int(11) NOT NULL DEFAULT '0' AFTER `module5s`;
+ALTER TABLE `ck_playeroptions2` ADD COLUMN `speedmessage` int(11) NOT NULL DEFAULT '0' AFTER `speedmessagemode`;

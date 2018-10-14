@@ -535,6 +535,8 @@ bool g_bTimerEnabled[MAXPLAYERS + 1];
 int g_SpeedGradient[MAXPLAYERS + 1];
 int g_SpeedMode[MAXPLAYERS + 1];
 bool g_bCenterSpeedDisplay[MAXPLAYERS + 1];
+int g_SpeedModeMessage[MAXPLAYERS + 1];
+bool g_bMessageSpeedDisplay[MAXPLAYERS + 1];
 int g_iCenterSpeedEnt[MAXPLAYERS + 1];
 int g_iSettingToLoad[MAXPLAYERS + 1];
 // Handle g_hServerTier;

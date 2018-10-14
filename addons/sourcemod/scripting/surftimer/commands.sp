@@ -1980,6 +1980,25 @@ void CenterSpeedDisplay(int client, bool menu = false)
 		MiscellaneousOptions(client);
 }
 
+void SpeedModeMessage(int client, bool menu = false)
+{
+	if (g_SpeedModeMessage[client] != 2)
+		g_SpeedModeMessage[client]++;
+	else
+		g_SpeedModeMessage[client] = 0;
+	
+	if (menu)
+		MiscellaneousOptions(client);
+}
+
+void MessageSpeedDisplay(int client, bool menu = false)
+{
+	g_bMessageSpeedDisplay[client] = !g_bMessageSpeedDisplay[client];
+
+	if (menu)
+		MiscellaneousOptions(client);
+}
+
 void TeleSide(int client, bool menu = false)
 {
 	if (g_iTeleSide[client] == 0)
@@ -3096,6 +3115,20 @@ public void MiscellaneousOptions(int client)
 		AddMenuItem(menu, "", "[ON] Centre Speed Display");
 	else
 		AddMenuItem(menu, "", "[OFF] Centre Speed Display");
+		
+	// Speed Mode for Message
+	if (g_SpeedModeMessage[client] == 0)
+		AddMenuItem(menu, "", "[XY] Speed Message Mode");
+	else if (g_SpeedModeMessage[client] == 1)
+		AddMenuItem(menu, "", "[XYZ] Speed Message Mode");
+	else
+		AddMenuItem(menu, "", "[Z] Speed Message Mode");
+
+	// Message Speed Display
+	if (g_bMessageSpeedDisplay[client])
+		AddMenuItem(menu, "", "[ON] Message Speed Display");
+	else
+		AddMenuItem(menu, "", "[OFF] Message Speed Display");
 
 	// Hide Chat
 	if (g_bHideChat[client])
@@ -3126,8 +3159,10 @@ public int MiscellaneousOptionsHandler(Menu menu, MenuAction action, int param1,
 			case 3: SpeedGradient(param1, true);
 			case 4: SpeedMode(param1, true);
 			case 5: CenterSpeedDisplay(param1, true);
-			case 6: HideChat(param1, true);
-			case 7: HideViewModel(param1, true);
+			case 6: SpeedModeMessage(param1, true);
+			case 7: MessageSpeedDisplay(param1, true);
+			case 8: HideChat(param1, true);
+			case 9: HideViewModel(param1, true);
 		}
 	}
 	else if (action == MenuAction_Cancel)

@@ -69,12 +69,15 @@ public void CL_OnStartTimerPress(int client)
 		if(!g_bPracticeMode[client] && !IsFakeClient(client))
 		{
 			// Get player velocity
-			float fPlayerVelocity = GetSpeed(client);
+			float fPlayerVelocity = GetSpeedMessage(client);
 
 			// Build Speed difference message
 			char speedMsg[128];
 			Format(speedMsg, sizeof(speedMsg), "%s Start: %d u/s", g_szChatPrefix, RoundToCeil(fPlayerVelocity));
-			CPrintToChat(client, speedMsg);
+			if(g_bMessageSpeedDisplay[client])
+			{
+				CPrintToChat(client, speedMsg);
+			}
 		
 			for (int i = 1; i <= MaxClients; i++)
 			{
@@ -92,7 +95,10 @@ public void CL_OnStartTimerPress(int client)
 				if (ObserverTarget != client)
 					continue;
  
-				CPrintToChat(i, speedMsg);
+				if(g_bMessageSpeedDisplay[i]) 
+				{
+					CPrintToChat(i, speedMsg);
+				}
 			}
 		}
 
@@ -789,12 +795,16 @@ public void CL_OnStartWrcpTimerPress(int client)
 			
 			if(g_Stage[0][client] > 1 && !g_bPracticeMode[client] && !IsFakeClient(client)) {
 				// Get player velocity
-				float fPlayerVelocity = GetSpeed(client);
+				float fPlayerVelocity = GetSpeedMessage(client);
 
 				// Build Speed difference message
 				char speedMsg[128];
 				Format(speedMsg, sizeof(speedMsg), "%s Stage %i: %d u/s", g_szChatPrefix, g_Stage[0][client], RoundToCeil(fPlayerVelocity));
-				CPrintToChat(client, speedMsg);
+				
+				if(g_bMessageSpeedDisplay[client])
+				{
+					CPrintToChat(client, speedMsg);
+				}
 		
 				for (int i = 1; i <= MaxClients; i++)
 				{
@@ -812,7 +822,10 @@ public void CL_OnStartWrcpTimerPress(int client)
 					if (ObserverTarget != client)
 						continue;
  
-					CPrintToChat(i, speedMsg);
+					if(g_bMessageSpeedDisplay[i])
+					{
+						CPrintToChat(i, speedMsg);
+					}
 				}
 			}
 		}
