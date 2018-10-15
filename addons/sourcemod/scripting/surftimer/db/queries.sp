@@ -119,4 +119,4 @@ char sql_deleteZonesInGroup[] = "DELETE FROM ck_zones WHERE mapname = '%s' AND z
 char sql_setZoneNames[] = "UPDATE ck_zones SET zonename = '%s' WHERE mapname = '%s' AND zonegroup = '%i';";
 
 char sql_MainEditQuery[] = "SELECT steamid, name, %s FROM %s where mapname='%s' and style='%i' %sORDER BY %s ASC LIMIT 50";
-char sql_MainDeleteQeury[] = "DELETE From %s where mapname='%s' and style='%s' and steamid='%s' %s";
+char sql_MainDeleteQeury[] = "DELETE From %s where mapname='%s' and style='%i' and steamid='%s' %s";
