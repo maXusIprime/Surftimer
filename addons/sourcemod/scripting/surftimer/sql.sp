@@ -2334,7 +2334,7 @@ public void db_currentRunRank(int client)
 	return;
 
 	char szQuery[512];
-	Format(szQuery, 512, "SELECT count(runtimepro)+1 FROM `ck_playertimes` WHERE `mapname` = '%s' AND `runtimepro` < %f;", g_szMapName, g_fFinalTime[client]);
+	Format(szQuery, 512, "SELECT count(runtimepro)+1 FROM `ck_playertimes` WHERE `mapname` = '%s' AND `runtimepro` < %f-(1E-3);", g_szMapName, g_fFinalTime[client]);
 	SQL_TQuery(g_hDb, SQL_CurrentRunRankCallback, szQuery, client, DBPrio_Low);
 }
 
@@ -2456,7 +2456,7 @@ public void SQL_UpdateRecordProCallback(Handle owner, Handle hndl, const char[] 
 
 		// Find out how many times are are faster than the players time
 		char szQuery[512];
-		Format(szQuery, 512, "SELECT count(runtimepro) FROM `ck_playertimes` WHERE `mapname` = '%s' AND `runtimepro` < %f AND style = 0;", g_szMapName, time);
+		Format(szQuery, 512, "SELECT count(runtimepro) FROM `ck_playertimes` WHERE `mapname` = '%s' AND `runtimepro` < %f-(1E-3) AND style = 0;", g_szMapName, time);
 		SQL_TQuery(g_hDb, SQL_UpdateRecordProCallback2, szQuery, client, DBPrio_Low);
 
 	}
@@ -5960,9 +5960,9 @@ public void SQL_UpdateWrcpRecordCallback(Handle owner, Handle hndl, const char[]
 	// Find out how many times are are faster than the players time
 	char szQuery[512];
 	if (style == 0)
-		Format(szQuery, 512, "SELECT count(runtimepro) FROM ck_wrcps WHERE `mapname` = '%s' AND stage = %i AND style = 0 AND runtimepro < %f AND runtimepro > -1.0;", g_szMapName, stage, stagetime);
+		Format(szQuery, 512, "SELECT count(runtimepro) FROM ck_wrcps WHERE `mapname` = '%s' AND stage = %i AND style = 0 AND runtimepro < %f-(1E-3) AND runtimepro > -1.0;", g_szMapName, stage, stagetime);
 	else if (style != 0)
-		Format(szQuery, 512, "SELECT count(runtimepro) FROM ck_wrcps WHERE mapname = '%s' AND runtimepro < %f AND stage = %i AND style = %i AND runtimepro > -1.0;", g_szMapName, stagetime, stage, style);
+		Format(szQuery, 512, "SELECT count(runtimepro) FROM ck_wrcps WHERE mapname = '%s' AND runtimepro < %f-(1E-3) AND stage = %i AND style = %i AND runtimepro > -1.0;", g_szMapName, stagetime, stage, style);
 
 	SQL_TQuery(g_hDb, SQL_UpdateWrcpRecordCallback2, szQuery, data, DBPrio_Low);
 }
@@ -6051,7 +6051,7 @@ public void SQL_UpdateWrcpRecordCallback2(Handle owner, Handle hndl, const char[
 	bool newRecordHolder = false;
 	if (style == 0)
 	{
-		if (g_TotalStageRecords[stage] > 0)
+		if (g_TotalStageRecords[stage] > 0 && (g_TotalStageRecords[stage] != 1 || !bInsert))
 		{ // If the server already has a record
 
 			if (g_fFinalWrcpTime[client] < g_fStageRecord[stage] && g_fFinalWrcpTime[client] > 0.0)
@@ -6094,7 +6094,7 @@ public void SQL_UpdateWrcpRecordCallback2(Handle owner, Handle hndl, const char[
 	}
 	else if (style != 0) // styles
 	{
-		if (g_TotalStageStyleRecords[style][stage] > 0)
+		if (g_TotalStageStyleRecords[style][stage] > 0 && (g_TotalStageStyleRecords[style][stage] != 1 || !bInsert))
 		{
 			// If the server already has a record
 			if (g_fFinalWrcpTime[client] < g_fStyleStageRecord[style][stage] && g_fFinalWrcpTime[client] > 0.0)
@@ -6313,10 +6313,21 @@ public void db_GetTotalStagesCallback(Handle owner, Handle hndl, const char[] er
 	{
 		g_TotalStages = SQL_FetchInt(hndl, 0) + 1;
 
-		for(int i = 1;i <= g_TotalStages;i++)
-		{
-			g_fStageRecord[i] = 0.0;
+		// for(int i = 1;i <= g_TotalStages;i++)
+		// {
+			// g_fStageRecord[i] = 0.0;
 			// fluffys comeback yo
+		// }
+		for (int i = 1; i <= g_TotalStages; i++)
+		{
+			Format(g_szRecordStageTime[i], 64, "N/A");
+			g_fStageRecord[i] = 0.0;
+
+			for (int s = 1; s < MAX_STYLES; s++)
+			{
+				Format(g_szStyleRecordStageTime[s][i], 64, "N/A");
+				g_fStyleStageRecord[s][i] = 0.0;
+			}
 		}
 	}
 
@@ -6637,9 +6648,13 @@ public void sql_viewTotalStageRecordsCallback(Handle owner, Handle hndl, const c
 		int stage;
 		int style;
 
-		for (int i = 0; i < CPLIMIT; i++)
+		for (int i = 1; i < CPLIMIT; i++)
 		{
 			g_TotalStageRecords[i] = 0;
+			for (int s = 1; s < MAX_STYLES; s++)
+			{
+				g_TotalStageStyleRecords[s][i] = 0;
+			}
 		}
 
 		while (SQL_FetchRow(hndl))
@@ -6678,7 +6693,7 @@ public void sql_viewTotalStageRecordsCallback(Handle owner, Handle hndl, const c
 		for (int i = 1; i <= g_TotalStages; i++)
 		{
 			g_TotalStageRecords[i] = 0;
-			for (int s = 1; i < MAX_STYLES; s++)
+			for (int s = 1; s < MAX_STYLES; s++)
 			{
 				g_TotalStageStyleRecords[s][i] = 0;
 			}
@@ -6801,7 +6816,7 @@ public void SQL_UpdateStyleRecordCallback(Handle owner, Handle hndl, const char[
 
 	// Find out how many times are are faster than the players time
 	char szQuery[512];
-	Format(szQuery, 512, "SELECT count(runtimepro) FROM `ck_playertimes` WHERE `mapname` = '%s' AND `style` = %i AND `runtimepro` < %f;", g_szMapName, style, time);
+	Format(szQuery, 512, "SELECT count(runtimepro) FROM `ck_playertimes` WHERE `mapname` = '%s' AND `style` = %i AND `runtimepro` < %f-(1E-3);", g_szMapName, style, time);
 	SQL_TQuery(g_hDb, SQL_UpdateStyleRecordCallback2, szQuery, data, DBPrio_Low);
 }
 
