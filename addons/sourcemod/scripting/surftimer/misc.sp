@@ -1631,6 +1631,24 @@ public float GetSpeed(int client)
 	return speed;
 }
 
+public float GetSpeedMessage(int client)
+{
+	float fVelocity[3];
+	GetEntPropVector(client, Prop_Data, "m_vecVelocity", fVelocity);
+	float speed;
+
+	if (g_SpeedModeMessage[client] == 0) // XY
+		speed = SquareRoot(Pow(fVelocity[0], 2.0) + Pow(fVelocity[1], 2.0));
+	else if (g_SpeedModeMessage[client] == 1) // XYZ
+		speed = SquareRoot(Pow(fVelocity[0], 2.0) + Pow(fVelocity[1], 2.0) + Pow(fVelocity[2], 2.0));
+	else if (g_SpeedModeMessage[client] == 2) // Z
+		speed = fVelocity[2];
+	else // XY default
+		speed = SquareRoot(Pow(fVelocity[0], 2.0) + Pow(fVelocity[1], 2.0));
+
+	return speed;
+}
+
 public void SetCashState()
 {
 	ServerCommand("mp_startmoney 0; mp_playercashawards 0; mp_teamcashawards 0");
