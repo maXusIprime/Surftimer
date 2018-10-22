@@ -3161,8 +3161,14 @@ public void SpecListMenuDead(int client) // What Spectators see
 						if (ObservedUser == g_RecordBot)
 							Format(g_szPlayerPanelText[client], 512, "Map Replay\n%s (%s)\n \nSpecs (%i):\n%s\n \n%s\n", g_szReplayName, g_szReplayTime, count, sSpecs, szStage);
 						else if (ObservedUser == g_BonusBot)
-							Format(g_szPlayerPanelText[client], 512, "Bonus Replay\n%s (%s)\n \nSpecs (%i):\n%s\n \nBonus %i\n", g_szBonusName, g_szBonusTime, count, sSpecs, g_iClientInZone[g_BonusBot][2]);
-						else if (ObservedUser == g_WrcpBot)
+							if (g_bManualBonusReplayPlayback)
+							{
+								Format(g_szPlayerPanelText[client], 512, "Bonus Replay\n%s (%s)\n \nSpecs (%i):\n%s\n \nBonus %i\n", g_szBonusName, g_szBonusTime, count, sSpecs, g_iManualBonusToReplay);
+							}
+							else
+							{
+								Format(g_szPlayerPanelText[client], 512, "Bonus Replay\n%s (%s)\n \nSpecs (%i):\n%s\n \nBonus %i\n", g_szBonusName, g_szBonusTime, count, sSpecs, g_iBonusToReplay[g_iCurrentBonusReplayIndex]);
+							}						else if (ObservedUser == g_WrcpBot)
 						{
 							if (g_bManualStageReplayPlayback)
 							{
