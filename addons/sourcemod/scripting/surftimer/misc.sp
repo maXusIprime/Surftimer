@@ -3168,7 +3168,8 @@ public void SpecListMenuDead(int client) // What Spectators see
 							else
 							{
 								Format(g_szPlayerPanelText[client], 512, "Bonus Replay\n%s (%s)\n \nSpecs (%i):\n%s\n \nBonus %i\n", g_szBonusName, g_szBonusTime, count, sSpecs, g_iBonusToReplay[g_iCurrentBonusReplayIndex]);
-							}						else if (ObservedUser == g_WrcpBot)
+							}
+						else if (ObservedUser == g_WrcpBot)
 						{
 							if (g_bManualStageReplayPlayback)
 							{
